@@ -1,6 +1,6 @@
 # crisp-mcp-server
 
-Read-only MCP server for the Crisp REST API on Cloudflare Workers.
+MCP server for the Crisp REST API on Cloudflare Workers. Read-mostly: websites, operators, and conversations are read-only; private notes and conversation segments are writable.
 
 ## Commands
 
@@ -16,7 +16,7 @@ Read-only MCP server for the Crisp REST API on Cloudflare Workers.
 - Crisp credentials are NOT stored on the worker. The MCP client passes `Authorization: Bearer <base64(token_id:token_key)>`; the worker forwards it as `Authorization: Basic <base64(...)>` plus `X-Crisp-Tier: website|plugin` to `https://api.crisp.chat/v1`.
 - Tier is selected via the `?tier=plugin` query param (default `website`).
 
-## Crisp API endpoints used (all GET)
+## Crisp API endpoints used
 
 - `GET /website/{website_id}`
 - `GET /plugin/connect/websites/all/{page}` (plugin tier)
@@ -27,9 +27,11 @@ Read-only MCP server for the Crisp REST API on Cloudflare Workers.
 - `GET /website/{website_id}/conversations/{page}`
 - `GET /website/{website_id}/conversation/{session_id}`
 - `GET /website/{website_id}/conversation/{session_id}/messages`
+- `POST /website/{website_id}/conversation/{session_id}/message` (type=note only)
+- `PATCH /website/{website_id}/conversation/{session_id}/meta` (segments only)
 
 ## Conventions
 
-- Read-only: never add POST/PATCH/PUT/DELETE tools.
+- Read-mostly: only private notes (POST message type=note) and conversation segments (PATCH meta segments) are writable. Do not add other write tools without explicit request.
 - Tool results are returned as JSON-stringified text content. Errors return `isError: true`.
 - Pin exact dependency versions (no floating ranges). Verify versions are >= 7 days old before bumping.

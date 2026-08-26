@@ -21,29 +21,37 @@ export class CrispClient {
     private readonly tier: CrispTier,
   ) {}
 
-  private async get<T>(path: string, query?: Record<string, QueryValue>): Promise<T> {
+  private async request<T>(
+    method: string,
+    path: string,
+    options: { query?: Record<string, QueryValue>; body?: unknown } = {},
+  ): Promise<T> {
     const url = new URL(CRISP_API_BASE + path);
-    if (query) {
-      for (const [key, value] of Object.entries(query)) {
+    if (options.query) {
+      for (const [key, value] of Object.entries(options.query)) {
         if (value === undefined || value === null || value === "") continue;
         url.searchParams.set(key, String(value));
       }
     }
 
-    const res = await fetch(url.toString(), {
-      method: "GET",
-      headers: {
-        Authorization: `Basic ${this.token}`,
-        "X-Crisp-Tier": this.tier,
-        Accept: "application/json",
-      },
-    });
+    const headers: Record<string, string> = {
+      Authorization: `Basic ${this.token}`,
+      "X-Crisp-Tier": this.tier,
+      Accept: "application/json",
+    };
+    let body: string | undefined;
+    if (options.body !== undefined) {
+      body = JSON.stringify(options.body);
+      headers["Content-Type"] = "application/json";
+    }
+
+    const res = await fetch(url.toString(), { method, headers, body });
 
     if (!res.ok) {
       let reason: string;
       try {
-        const body = (await res.json()) as { reason?: string; error?: string; message?: string };
-        reason = body.reason ?? body.error ?? body.message ?? res.statusText;
+        const resBody = (await res.json()) as { reason?: string; error?: string; message?: string };
+        reason = resBody.reason ?? resBody.error ?? resBody.message ?? res.statusText;
       } catch {
         reason = res.statusText;
       }
@@ -52,6 +60,18 @@ export class CrispClient {
 
     if (res.status === 204) return undefined as T;
     return (await res.json()) as T;
+  }
+
+  private get<T>(path: string, query?: Record<string, QueryValue>): Promise<T> {
+    return this.request<T>("GET", path, { query });
+  }
+
+  private post<T>(path: string, body?: unknown): Promise<T> {
+    return this.request<T>("POST", path, { body });
+  }
+
+  private patch<T>(path: string, body?: unknown): Promise<T> {
+    return this.request<T>("PATCH", path, { body });
   }
 
   getWebsite(websiteId: string) {
@@ -123,6 +143,25 @@ export class CrispClient {
     return this.get<{ data: unknown }>(
       `/website/${encodeURIComponent(websiteId)}/conversation/${encodeURIComponent(sessionId)}/messages`,
       timestamps as Record<string, QueryValue>,
+    );
+  }
+
+  sendNoteInConversation(
+    websiteId: string,
+    sessionId: string,
+    content: string,
+    mentions: string[] = [],
+  ) {
+    return this.post<{ data: unknown }>(
+      `/website/${encodeURIComponent(websiteId)}/conversation/${encodeURIComponent(sessionId)}/message`,
+      { type: "note", from: "operator", origin: "chat", content, mentions },
+    );
+  }
+
+  setConversationSegments(websiteId: string, sessionId: string, segments: string[]) {
+    return this.patch<{ data: unknown }>(
+      `/website/${encodeURIComponent(websiteId)}/conversation/${encodeURIComponent(sessionId)}/meta`,
+      { segments },
     );
   }
 }

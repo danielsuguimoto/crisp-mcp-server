@@ -153,4 +153,37 @@ export function registerTools(server: McpServer, crisp: CrispClient): void {
       crisp.getConversationMessages(website_id, session_id, timestamps),
     ),
   );
+
+  server.registerTool(
+    "send_conversation_note",
+    {
+      description:
+        "Post a private note in a conversation. Notes are only visible to operators, not to the visitor.",
+      inputSchema: {
+        website_id: z.string(),
+        session_id: z.string(),
+        content: z.string().describe("Note text (markdown supported)"),
+        mentions: z.array(z.string()).optional().describe("Operator user IDs to mention"),
+      },
+    },
+    handle(({ website_id, session_id, content, mentions }) =>
+      crisp.sendNoteInConversation(website_id, session_id, content, mentions ?? []),
+    ),
+  );
+
+  server.registerTool(
+    "set_conversation_segments",
+    {
+      description:
+        "Replace the segments assigned to a conversation. Pass the full desired list of segment names. Pass an empty array to remove all segments.",
+      inputSchema: {
+        website_id: z.string(),
+        session_id: z.string(),
+        segments: z.array(z.string()).describe("Full list of segment names to set (replaces existing)"),
+      },
+    },
+    handle(({ website_id, session_id, segments }) =>
+      crisp.setConversationSegments(website_id, session_id, segments),
+    ),
+  );
 }

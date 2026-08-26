@@ -1,8 +1,8 @@
 # crisp-mcp-server
 
-A read-only [Model Context Protocol](https://modelcontextprotocol.io) server for the [Crisp](https://crisp.chat) REST API, deployed on Cloudflare Workers.
+An [Model Context Protocol](https://modelcontextprotocol.io) server for the [Crisp](https://crisp.chat) REST API, deployed on Cloudflare Workers.
 
-It exposes Crisp **websites**, **operators**, and **conversations** as MCP tools so an MCP-compatible AI agent can query them. No data is ever written back to Crisp.
+It exposes Crisp **websites**, **operators**, and **conversations** as MCP tools so an MCP-compatible AI agent can query them, post private notes, and manage conversation segments.
 
 ## Tools
 
@@ -17,6 +17,8 @@ It exposes Crisp **websites**, **operators**, and **conversations** as MCP tools
 | `list_conversations` | both | List conversations of a website (paginated, filterable). |
 | `get_conversation` | both | Get a single conversation. |
 | `get_conversation_messages` | both | Get messages of a conversation. |
+| `send_conversation_note` | both | Post a private note (operator-only, not visible to visitor). |
+| `set_conversation_segments` | both | Replace the segments assigned to a conversation. |
 
 ## Authentication
 
@@ -78,6 +80,6 @@ Then point an MCP client at `https://<your-worker>.workers.dev/mcp?tier=website`
 
 ## Notes
 
-- Read-only: only `GET` endpoints are called.
+- Read-mostly: only private notes and conversation segments are writable; all other tools are read-only.
 - Stateless: no Durable Objects, no sessions, no stored credentials.
 - The Crisp token is sent by the client on every connection; rotate it from the Crisp app if leaked.
