@@ -6,7 +6,7 @@ import { registerTools } from "./tools";
 const SERVER_NAME = "crisp-mcp-server";
 const SERVER_VERSION = "0.1.0";
 
-const FAVICON_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="7" fill="#f64d4d"/><path d="M16 7C10.5 7 6 10.6 6 15.1c0 2.6 1.5 4.9 3.8 6.4-.1 1-.6 2.4-1.3 3.4 1.6-.3 3.2-1 4.5-1.9 1 .2 2 .3 3 .3 5.5 0 10-3.6 10-8.1S21.5 7 16 7z" fill="#fff"/></svg>`;
+const FAVICON_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 49 37"><path fill="#3770ec" d="M46.007 2.865l.003.023 2.074 20.888a3 3 0 0 1-2.661 3.279L32.49 28.458l-4.8 7.533a1.5 1.5 0 0 1-2.343.238l-6.132-6.331L6.04 31.329a3 3 0 0 1-3.31-2.7L.742 7.683a3 3 0 0 1 2.666-3.266L42.704.202a3 3 0 0 1 3.303 2.663"/></svg>`;
 
 const ROOT_HTML = `<!doctype html><html><head><meta charset="utf-8"><title>crisp-mcp-server</title><link rel="icon" type="image/svg+xml" href="/favicon.svg"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="font:14px/1.5 system-ui,sans-serif;max-width:32rem;margin:2rem auto;padding:0 1rem;color:#1a1a1a"><h1>crisp-mcp-server</h1><p>Read-mostly MCP server for the Crisp REST API. Deployed on Cloudflare Workers.</p><p>MCP endpoint: <code>/mcp?tier=website|plugin</code></p></body></html>`;
 
