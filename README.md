@@ -1,0 +1,83 @@
+# crisp-mcp-server
+
+A read-only [Model Context Protocol](https://modelcontextprotocol.io) server for the [Crisp](https://crisp.chat) REST API, deployed on Cloudflare Workers.
+
+It exposes Crisp **websites**, **operators**, and **conversations** as MCP tools so an MCP-compatible AI agent can query them. No data is ever written back to Crisp.
+
+## Tools
+
+| Tool | Tier | Description |
+| --- | --- | --- |
+| `get_website` | both | Get a single website (workspace). |
+| `list_connect_websites` | plugin | List all websites connected to the plugin token. |
+| `get_connect_account` | plugin | Get the authenticated plugin account. |
+| `list_website_operators` | both | List operators of a website. |
+| `list_last_active_website_operators` | both | List last active operators of a website. |
+| `get_website_operator` | both | Get a single operator of a website. |
+| `list_conversations` | both | List conversations of a website (paginated, filterable). |
+| `get_conversation` | both | Get a single conversation. |
+| `get_conversation_messages` | both | Get messages of a conversation. |
+
+## Authentication
+
+The server is **stateless and credential-free**: it does not store any Crisp token. Each MCP client passes the Crisp token directly to the endpoint.
+
+The Crisp REST API uses Basic auth with a keypair `token_id:token_key`. Base64-encode the string `token_id:token_key` and pass it as a Bearer token to the MCP endpoint:
+
+```
+Authorization: Bearer <base64(token_id:token_key)>
+```
+
+The worker forwards that value as `Authorization: Basic <base64(...)>` to the Crisp API.
+
+### Tier
+
+Crisp tokens are either `website` (single workspace) or `plugin` (multi-workspace). Select the tier with the `tier` query parameter:
+
+- `?tier=website` (default) — sets `X-Crisp-Tier: website`
+- `?tier=plugin` — sets `X-Crisp-Tier: plugin`
+
+Generate tokens from the Crisp app: **Settings → Workspace Settings → Advanced configuration → API Token** (website), or the Crisp Marketplace (plugin).
+
+## Develop
+
+```bash
+npm install
+npm run dev      # local dev at http://localhost:8787
+npm run typecheck
+```
+
+## Deploy
+
+```bash
+npm run deploy
+```
+
+Then point an MCP client at `https://<your-worker>.workers.dev/mcp?tier=website` with the `Authorization: Bearer <base64(...)>` header.
+
+### Claude Desktop / Claude Code example
+
+```jsonc
+{
+  "mcpServers": {
+    "crisp": {
+      "url": "https://<your-worker>.workers.dev/mcp?tier=website",
+      "headers": {
+        "Authorization": "Bearer <base64(token_id:token_key)>"
+      }
+    }
+  }
+}
+```
+
+## How it works
+
+- `src/index.ts` — Worker entry. Extracts the Bearer token and tier from the request, builds a fresh MCP server per request, and hands it to `createMcpHandler` (stateless Streamable HTTP transport).
+- `src/crisp.ts` — Thin read-only Crisp REST client (`https://api.crisp.chat/v1`).
+- `src/tools.ts` — Registers the MCP tools above.
+
+## Notes
+
+- Read-only: only `GET` endpoints are called.
+- Stateless: no Durable Objects, no sessions, no stored credentials.
+- The Crisp token is sent by the client on every connection; rotate it from the Crisp app if leaked.
