@@ -1,6 +1,6 @@
 # crisp-mcp-server
 
-MCP server for the Crisp REST API on Cloudflare Workers. Read-mostly: websites, operators, and conversations are read-only; private notes and conversation segments are writable.
+MCP server for the Crisp REST API on Cloudflare Workers. Read-mostly: websites, operators, and conversations are read-only; private notes, conversation segments, conversation replies (text messages), and conversation state (resolve/unresolve) are writable.
 
 ## Commands
 
@@ -27,11 +27,13 @@ MCP server for the Crisp REST API on Cloudflare Workers. Read-mostly: websites, 
 - `GET /website/{website_id}/conversations/{page}`
 - `GET /website/{website_id}/conversation/{session_id}`
 - `GET /website/{website_id}/conversation/{session_id}/messages`
-- `POST /website/{website_id}/conversation/{session_id}/message` (type=note only)
+- `POST /website/{website_id}/conversation/{session_id}/message` (type=note or type=text)
 - `PATCH /website/{website_id}/conversation/{session_id}/meta` (segments only)
+- `GET /website/{website_id}/conversation/{session_id}/state`
+- `PATCH /website/{website_id}/conversation/{session_id}/state` (pending|unresolved|resolved)
 
 ## Conventions
 
-- Read-mostly: only private notes (POST message type=note) and conversation segments (PATCH meta segments) are writable. Do not add other write tools without explicit request.
+- Read-mostly: only private notes (POST message type=note), conversation replies (POST message type=text), conversation segments (PATCH meta segments), and conversation state (PATCH state) are writable. Do not add other write tools without explicit request.
 - Tool results are returned as JSON-stringified text content. Errors return `isError: true`.
 - Pin exact dependency versions (no floating ranges). Verify versions are >= 7 days old before bumping.

@@ -172,6 +172,55 @@ export function registerTools(server: McpServer, crisp: CrispClient): void {
   );
 
   server.registerTool(
+    "send_conversation_message",
+    {
+      description:
+        "Send a text message in a conversation as an operator. The message is visible to the visitor. Use send_conversation_note for internal notes.",
+      inputSchema: {
+        website_id: z.string(),
+        session_id: z.string(),
+        content: z.string().describe("Message text (markdown supported)"),
+        fingerprint: z.number().int().optional().describe("Optional message fingerprint (defaults to 0)"),
+        mentions: z.array(z.string()).optional().describe("Operator user IDs to mention"),
+      },
+    },
+    handle(({ website_id, session_id, content, fingerprint, mentions }) =>
+      crisp.sendTextMessageInConversation(website_id, session_id, content, {
+        fingerprint,
+        mentions: mentions ?? [],
+      }),
+    ),
+  );
+
+  server.registerTool(
+    "get_conversation_state",
+    {
+      description: "Get the current state of a conversation (pending, unresolved, or resolved).",
+      inputSchema: {
+        website_id: z.string(),
+        session_id: z.string(),
+      },
+    },
+    handle(({ website_id, session_id }) => crisp.getConversationState(website_id, session_id)),
+  );
+
+  server.registerTool(
+    "set_conversation_state",
+    {
+      description:
+        "Change the state of a conversation. Use 'resolved' to resolve, 'unresolved' to reopen as unresolved, or 'pending' to mark pending.",
+      inputSchema: {
+        website_id: z.string(),
+        session_id: z.string(),
+        state: z.enum(["pending", "unresolved", "resolved"]).describe("New conversation state"),
+      },
+    },
+    handle(({ website_id, session_id, state }) =>
+      crisp.setConversationState(website_id, session_id, state),
+    ),
+  );
+
+  server.registerTool(
     "set_conversation_segments",
     {
       description:

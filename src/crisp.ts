@@ -158,6 +158,42 @@ export class CrispClient {
     );
   }
 
+  sendTextMessageInConversation(
+    websiteId: string,
+    sessionId: string,
+    content: string,
+    options: { fingerprint?: number; mentions?: string[] } = {},
+  ) {
+    return this.post<{ data: unknown }>(
+      `/website/${encodeURIComponent(websiteId)}/conversation/${encodeURIComponent(sessionId)}/message`,
+      {
+        type: "text",
+        from: "operator",
+        origin: "chat",
+        content,
+        fingerprint: options.fingerprint ?? 0,
+        ...(options.mentions && options.mentions.length ? { mentions: options.mentions } : {}),
+      },
+    );
+  }
+
+  getConversationState(websiteId: string, sessionId: string) {
+    return this.get<{ data: unknown }>(
+      `/website/${encodeURIComponent(websiteId)}/conversation/${encodeURIComponent(sessionId)}/state`,
+    );
+  }
+
+  setConversationState(
+    websiteId: string,
+    sessionId: string,
+    state: "pending" | "unresolved" | "resolved",
+  ) {
+    return this.patch<{ data: unknown }>(
+      `/website/${encodeURIComponent(websiteId)}/conversation/${encodeURIComponent(sessionId)}/state`,
+      { state },
+    );
+  }
+
   setConversationSegments(websiteId: string, sessionId: string, segments: string[]) {
     return this.patch<{ data: unknown }>(
       `/website/${encodeURIComponent(websiteId)}/conversation/${encodeURIComponent(sessionId)}/meta`,
