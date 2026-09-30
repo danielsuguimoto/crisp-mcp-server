@@ -61,7 +61,7 @@ To configure a Worker-wide default, add a `vars` entry to `wrangler.jsonc`:
 For local development, put `DEFAULT_WEBSITE_ID=<workspace-id>` in `.dev.vars` (do not commit local variables).
 Blank configuration values are treated as unset. An explicit blank `website_id` is rejected.
 
-Website-tier tokens cannot list connected websites through the Crisp API, so they require an explicit ID or a configured default. Plugin auto-discovery checks the next page before choosing a sole website and returns an actionable tool error if there are no websites, multiple websites, or discovery is unavailable. Discovery is lazy and scoped to the current request's credentials; no website IDs or credentials are cached across requests. Listing tools remain usable without a default.
+Website-tier tokens cannot list connected websites through the Crisp API, so they require an explicit ID or a configured default. Plugin auto-discovery checks the next page before choosing a sole website and returns an actionable tool error if there are no websites, multiple websites, or discovery is unavailable. Discovery is lazy and scoped to the current request's credentials; no website IDs or credentials are cached across requests. `list_connect_websites` and `get_connect_account` remain usable without a default or website discovery.
 
 ## Develop
 

@@ -269,6 +269,26 @@ test("URL defaults override env defaults and explicit IDs override both", async 
   );
 });
 
+test("an explicit plugin website ID takes precedence over single-workspace discovery", async (t) => {
+  const calls = mockCrisp(t, (url) =>
+    Response.json({
+      data: url.pathname.endsWith("/all/1")
+        ? [{ website_id: "discovered-site" }]
+        : [],
+    }),
+  );
+  const result = await callTool(
+    "get_website",
+    { website_id: "explicit-site" },
+    "?tier=plugin",
+  );
+  assert.equal(result.isError, undefined);
+  assert.deepEqual(
+    calls.map(({ url }) => url.pathname),
+    ["/v1/website/explicit-site"],
+  );
+});
+
 test("plugin tier discovers the only workspace and forwards request credentials", async (t) => {
   const calls = mockCrisp(t, (url) =>
     Response.json({
@@ -369,6 +389,29 @@ test("unavailable discovery includes the API error and configuration advice", as
   assert.match(result.content[0].text, /Crisp API 401.*unauthorized/);
   assert.match(result.content[0].text, /DEFAULT_WEBSITE_ID/);
   assert.equal(calls.length, 1);
+});
+
+test("an unavailable second discovery page prevents selecting a workspace or writing", async (t) => {
+  const calls = mockCrisp(t, (url) =>
+    url.pathname.endsWith("/all/1")
+      ? Response.json({ data: [{ website_id: "only-site" }] })
+      : Response.json({ reason: "unavailable" }, { status: 503 }),
+  );
+  const result = await callTool(
+    "set_conversation_state",
+    { session_id: "session", state: "resolved" },
+    "?tier=plugin",
+  );
+  assert.equal(result.isError, true);
+  assert.match(result.content[0].text, /Crisp API 503.*unavailable/);
+  assert.match(result.content[0].text, /DEFAULT_WEBSITE_ID/);
+  assert.deepEqual(
+    calls.map(({ url, init }) => [init.method, url.pathname]),
+    [
+      ["GET", "/v1/plugin/connect/websites/all/1"],
+      ["GET", "/v1/plugin/connect/websites/all/2"],
+    ],
+  );
 });
 
 test("network failures are returned as actionable MCP errors", async (t) => {
