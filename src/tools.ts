@@ -32,6 +32,9 @@ function handle<TArgs>(fn: (args: TArgs) => Promise<unknown>) {
 }
 
 const zeroOne = z.union([z.literal(0), z.literal(1)]).optional();
+const operatorId = z.uuid({
+  error: "Use an operator user ID (UUID) from list_website_operators; names, emails, and 'me' are not supported.",
+});
 const websiteId = z.string().trim().min(1).optional().describe(
   "Crisp website ID (workspace ID). Omit to use the configured default or the only connected website (plugin tier).",
 );
@@ -110,8 +113,9 @@ export function registerTools(server: McpServer, crisp: CrispClient): void {
   server.registerTool(
     "list_conversations",
     {
-      description: "List conversations of a Crisp website. Paginated, with optional filters.",
-      inputSchema: {
+      description:
+        "List conversations of a Crisp website. Use assigned_operator_id for assignment to a specific operator. filter_mention is a separate 0/1 flag for mentions of the authenticated user, not an operator ID.",
+      inputSchema: z.object({
         website_id: websiteId,
         page: z.number().int().min(1).default(1).describe("Page number, starting at 1"),
         per_page: z.number().int().min(20).max(50).optional().describe("Page size (20–50, defaults to 20)"),
@@ -123,18 +127,46 @@ export function registerTools(server: McpServer, crisp: CrispClient): void {
         filter_unread: zeroOne,
         filter_resolved: zeroOne,
         filter_not_resolved: zeroOne,
-        filter_mention: zeroOne,
-        filter_assigned: z.string().optional().describe("Filter by assigned operator user ID"),
-        filter_unassigned: zeroOne,
+        assigned_operator_id: operatorId.optional().describe("Only conversations assigned to this operator user ID (UUID from list_website_operators)"),
+        filter_mention: z.union([z.literal(0), z.literal(1)], {
+          error: "filter_mention must be 0 or 1 for mentions of the authenticated user; filtering mentions by operator ID is not supported.",
+        }).optional().describe("1: only mentions of the authenticated user; 0: no mention filter. Does not select an assigned operator."),
+        filter_assigned: operatorId.optional().describe("Legacy alias for assigned_operator_id (operator user ID UUID)"),
+        filter_unassigned: zeroOne.describe("1: only unassigned conversations; cannot combine with an assigned operator ID"),
         filter_date_start: z.string().optional().describe("ISO date, inclusive lower bound"),
         filter_date_end: z.string().optional().describe("ISO date, inclusive upper bound"),
         order_date_created: zeroOne,
         order_date_updated: zeroOne,
         order_date_waiting: zeroOne,
-      },
+      }).superRefine((args, ctx) => {
+        if (
+          args.assigned_operator_id !== undefined &&
+          args.filter_assigned !== undefined &&
+          args.assigned_operator_id !== args.filter_assigned
+        ) {
+          ctx.addIssue({
+            code: "custom",
+            path: ["filter_assigned"],
+            message: "assigned_operator_id and filter_assigned must identify the same operator; use only assigned_operator_id.",
+          });
+        }
+        if (
+          args.filter_unassigned === 1 &&
+          (args.assigned_operator_id !== undefined || args.filter_assigned !== undefined)
+        ) {
+          ctx.addIssue({
+            code: "custom",
+            path: ["filter_unassigned"],
+            message: "filter_unassigned=1 cannot be combined with assigned_operator_id or filter_assigned.",
+          });
+        }
+      }),
     },
-    handle(async ({ website_id, page, ...options }) =>
-      crisp.listConversations(await crisp.resolveWebsiteId(website_id), page, options),
+    handle(async ({ website_id, page, assigned_operator_id, filter_assigned, ...options }) =>
+      crisp.listConversations(await crisp.resolveWebsiteId(website_id), page, {
+        ...options,
+        filter_assigned: assigned_operator_id ?? filter_assigned,
+      }),
     ),
   );
 

@@ -118,13 +118,13 @@ test("omitting search preserves existing pagination and filters", { timeout: 500
   const { call } = await createServer(t);
   await call({
     website_id: "website_1", page: 4, per_page: 20, include_empty: 0,
-    filter_resolved: 1, filter_assigned: "operator_1", order_date_created: 1,
+    filter_resolved: 1, filter_assigned: "a4c32c68-be91-4e29-8a05-976e93abbe3f", order_date_created: 1,
   });
   const url = new URL(fetchMock.mock.calls[0].arguments[0]);
   assert.equal(url.pathname, "/v1/website/website_1/conversations/4");
   assert.deepEqual(Object.fromEntries(url.searchParams), {
     per_page: "20", include_empty: "0", filter_resolved: "1",
-    filter_assigned: "operator_1", order_date_created: "1",
+    filter_assigned: "a4c32c68-be91-4e29-8a05-976e93abbe3f", order_date_created: "1",
   });
 });
 
