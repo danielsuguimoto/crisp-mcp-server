@@ -34,9 +34,7 @@ async function rpc(
       waitUntil() {},
       passThroughOnException() {},
       props: {},
-      exports: {},
-      abort() {},
-    } as ExecutionContext,
+    } as unknown as ExecutionContext,
   );
   assert.equal(response.status, 200);
   const body = await response.text();
