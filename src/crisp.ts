@@ -15,6 +15,40 @@ export class CrispApiError extends Error {
 
 type QueryValue = string | number | boolean | undefined | null;
 
+interface ConversationSummary {
+  state: "pending" | "unresolved" | "resolved";
+  updated_at?: number;
+  waiting_since?: number;
+  unread?: { operator: number; visitor: number };
+  assigned?: { user_id: string };
+}
+
+interface ConversationMessage {
+  type: string;
+  from: "user" | "operator";
+  timestamp: number;
+  fingerprint?: number;
+  content: unknown;
+  user?: { user_id?: string; nickname?: string };
+  automated?: boolean;
+  mentions?: string[];
+}
+
+function summarizeMessage(message: ConversationMessage) {
+  return {
+    type: message.type,
+    from: message.from,
+    timestamp: message.timestamp,
+    fingerprint: message.fingerprint ?? null,
+    content: message.content,
+    user: message.user
+      ? { user_id: message.user.user_id ?? null, nickname: message.user.nickname ?? null }
+      : null,
+    automated: message.automated ?? false,
+    mentions: message.mentions ?? [],
+  };
+}
+
 export class CrispClient {
   constructor(
     private readonly token: string,
@@ -130,7 +164,7 @@ export class CrispClient {
   }
 
   getConversation(websiteId: string, sessionId: string) {
-    return this.get<{ data: unknown }>(
+    return this.get<{ data: ConversationSummary }>(
       `/website/${encodeURIComponent(websiteId)}/conversation/${encodeURIComponent(sessionId)}`,
     );
   }
@@ -140,10 +174,42 @@ export class CrispClient {
     sessionId: string,
     timestamps: { timestamp_before?: string | number; timestamp_after?: string | number; timestamp_around?: string | number } = {},
   ) {
-    return this.get<{ data: unknown }>(
+    return this.get<{ data: ConversationMessage[] }>(
       `/website/${encodeURIComponent(websiteId)}/conversation/${encodeURIComponent(sessionId)}/messages`,
       timestamps as Record<string, QueryValue>,
     );
+  }
+
+  async getConversationActivity(websiteId: string, sessionId: string, noteLimit = 5) {
+    const [conversation, messages] = await Promise.all([
+      this.getConversation(websiteId, sessionId),
+      this.getConversationMessages(websiteId, sessionId),
+    ]);
+    const recent = [...messages.data].sort((a, b) => b.timestamp - a.timestamp);
+    const notes = recent.filter((message) => message.type === "note");
+    const lastOperator = recent.find((message) => message.from === "operator");
+    const lastVisitor = recent.find((message) => message.from === "user");
+
+    return {
+      data: {
+        state: conversation.data.state,
+        updated_at: conversation.data.updated_at ?? null,
+        waiting_since: conversation.data.waiting_since ?? null,
+        unread: conversation.data.unread ?? null,
+        assigned: conversation.data.assigned ?? null,
+        last_event: recent[0] ? summarizeMessage(recent[0]) : null,
+        last_operator_event: lastOperator ? summarizeMessage(lastOperator) : null,
+        last_visitor_event: lastVisitor ? summarizeMessage(lastVisitor) : null,
+        notes: notes.slice(0, noteLimit).map(summarizeMessage),
+        window: {
+          scope: "latest_message_batch",
+          messages_scanned: recent.length,
+          oldest_timestamp: recent.at(-1)?.timestamp ?? null,
+          newest_timestamp: recent[0]?.timestamp ?? null,
+          notes_truncated: notes.length > noteLimit,
+        },
+      },
+    };
   }
 
   sendNoteInConversation(

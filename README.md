@@ -17,8 +17,64 @@ It exposes Crisp **websites**, **operators**, and **conversations** as MCP tools
 | `list_conversations` | both | List conversations of a website (paginated, filterable). |
 | `get_conversation` | both | Get a single conversation. |
 | `get_conversation_messages` | both | Get messages of a conversation. |
+| `get_conversation_activity` | both | Get current state, recent internal notes, and last operator/visitor events from one recent message batch. |
 | `send_conversation_note` | both | Post a private note (operator-only, not visible to visitor). |
 | `set_conversation_segments` | both | Replace the segments assigned to a conversation. |
+
+### Focused conversation activity
+
+Use `get_conversation_activity` for briefings that need to check whether a conversation
+is waiting for an operator or was recently handled. It makes two read-only requests:
+conversation details and the latest message batch. It never pages through older
+history. Crisp's [messages endpoint](https://docs.crisp.chat/references/rest-api/v1/#get-messages-in-conversation)
+returns the latest batch by default; this tool filters that batch locally.
+
+| Input | Required | Description |
+| --- | --- | --- |
+| `website_id` | yes | Nonempty Crisp workspace ID. |
+| `session_id` | yes | Nonempty conversation session ID. |
+| `note_limit` | no | Maximum notes returned, integer 0–20, default 5. `0` omits the notes list; last-event fields can still contain a note. |
+
+Example call:
+
+```json
+{"website_id":"your-workspace-id","session_id":"session_example","note_limit":3}
+```
+
+The JSON text result contains a `data` object with:
+
+| Field | Returned information |
+| --- | --- |
+| `state` | Current Crisp state: `pending`, `unresolved`, or `resolved`. |
+| `updated_at`, `waiting_since` | Conversation update and waiting timestamps in milliseconds, or `null` when absent. |
+| `unread` | `{operator, visitor}` unread counts, or `null` when absent. |
+| `assigned` | Assigned operator `{user_id}`, or `null` when absent. |
+| `last_event` | Most recent message/note/event in the fetched batch, or `null`. |
+| `last_operator_event` | Most recent entry with `from: "operator"` in the batch, including replies, notes, and events, or `null`. |
+| `last_visitor_event` | Most recent entry with `from: "user"` in the batch, or `null`. |
+| `notes` | Entries with `type: "note"`, newest first, capped by `note_limit`. |
+| `window` | `{scope: "latest_message_batch", messages_scanned, oldest_timestamp, newest_timestamp, notes_truncated}`; timestamps are `null` for an empty batch. |
+
+Each event/note contains `type`, `from`, `timestamp` (milliseconds), `fingerprint`
+(or `null`), `content`, `user` (`{user_id, nickname}` with missing values set to
+`null`, or `null` if absent), `automated` (defaults to `false`), and `mentions`
+(defaults to `[]`). Text/note content is a string; other message types preserve
+Crisp's content object, including event `namespace`/`text` (for example,
+`state:resolved`). Full conversation metadata and unrelated messages are omitted.
+
+Use the **current `state`** together with waiting/unread/assignment signals and
+event timestamps/content. A newer visitor message after an operator reply can
+indicate another action is needed; a `resolved` state can supersede that message.
+An internal note, automated reply, or unread count alone does not prove the issue
+was handled. This tool returns evidence rather than inferring who must act.
+
+The window covers only the latest batch: empty `notes` or `null` event fields do
+not rule out older activity. `notes_truncated` means notes in this batch were
+omitted because of `note_limit`; `false` does not mean all historical notes were
+retrieved. Use `get_conversation_messages` with timestamp pagination when older
+context is explicitly needed. Both tiers are supported; plugin tokens need
+`website:conversation:sessions` and `website:conversation:messages` scopes.
+Upstream failures return the usual MCP `isError: true` result.
 
 ## Authentication
 
@@ -47,6 +103,7 @@ Generate tokens from the Crisp app: **Settings → Workspace Settings → Advanc
 npm install
 npm run dev      # local dev at http://localhost:8787
 npm run typecheck
+npm test
 ```
 
 ## Deploy

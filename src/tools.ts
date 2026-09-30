@@ -155,6 +155,22 @@ export function registerTools(server: McpServer, crisp: CrispClient): void {
   );
 
   server.registerTool(
+    "get_conversation_activity",
+    {
+      description:
+        "Get current conversation state, waiting/unread/assignment signals, recent internal notes, and the last overall/operator/visitor event. Reads only the latest message batch; never scans older history. Missing events/notes may exist in older batches. Use state and event timestamps/content to assess operator action; a note alone does not mean the conversation is handled.",
+      inputSchema: {
+        website_id: z.string().min(1).describe("Crisp website ID (workspace ID)"),
+        session_id: z.string().min(1).describe("Conversation session ID"),
+        note_limit: z.number().int().min(0).max(20).default(5).describe("Maximum recent notes to return (0–20, defaults to 5), newest first, from the latest message batch only"),
+      },
+    },
+    handle(({ website_id, session_id, note_limit }) =>
+      crisp.getConversationActivity(website_id, session_id, note_limit),
+    ),
+  );
+
+  server.registerTool(
     "send_conversation_note",
     {
       description:

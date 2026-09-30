@@ -7,6 +7,7 @@ MCP server for the Crisp REST API on Cloudflare Workers. Read-mostly: websites, 
 - `npm run dev` — local dev (wrangler dev, port 8787)
 - `npm run deploy` — deploy to Cloudflare Workers
 - `npm run typecheck` — `tsc --noEmit`
+- `npm test` — run Vitest tests (mocked Crisp API and MCP HTTP transport)
 - `npm run types` — regenerate `env.d.ts` via wrangler
 
 ## Architecture
@@ -36,4 +37,5 @@ MCP server for the Crisp REST API on Cloudflare Workers. Read-mostly: websites, 
 
 - Read-mostly: only private notes (POST message type=note), conversation replies (POST message type=text), conversation segments (PATCH meta segments), and conversation state (PATCH state) are writable. Do not add other write tools without explicit request.
 - Tool results are returned as JSON-stringified text content. Errors return `isError: true`.
+- `get_conversation_activity` combines conversation details with one latest message batch, returning focused state/notes/events without paging through history.
 - Pin exact dependency versions (no floating ranges). Verify versions are >= 7 days old before bumping.
