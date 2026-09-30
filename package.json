@@ -7,6 +7,7 @@
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
+    "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "types": "wrangler types"
   },
@@ -17,7 +18,9 @@
   },
   "devDependencies": {
     "@cloudflare/workers-types": "5.20260826.1",
+    "@modelcontextprotocol/client": "2.0.0",
     "typescript": "5.9.3",
+    "vitest": "4.1.11",
     "wrangler": "4.126.0"
   }
 }
