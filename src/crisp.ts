@@ -187,6 +187,9 @@ export class CrispClient {
     page: number,
     options: {
       per_page?: number;
+      search_query?: string;
+      search_type?: "text" | "segment" | "filter";
+      search_operator?: "and" | "or";
       include_empty?: 0 | 1;
       filter_inbox_id?: string;
       filter_unread?: 0 | 1;

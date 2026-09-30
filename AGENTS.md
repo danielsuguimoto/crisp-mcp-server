@@ -7,7 +7,7 @@ MCP server for the Crisp REST API on Cloudflare Workers. Read-mostly: websites, 
 - `npm run dev` — local dev (wrangler dev, port 8787)
 - `npm run deploy` — deploy to Cloudflare Workers
 - `npm run typecheck` — typecheck source and tests with both TypeScript configurations
-- `npm test` — run Vitest activity tests and Node website-resolution tests
+- `npm test` — run Vitest activity tests and Node conversation-search and website-resolution tests
 - `npm run types` — regenerate `env.d.ts` via wrangler
 
 ## Architecture

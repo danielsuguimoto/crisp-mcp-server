@@ -76,6 +76,18 @@ context is explicitly needed. Both tiers are supported; plugin tokens need
 `website:conversation:sessions` and `website:conversation:messages` scopes.
 Upstream failures return the usual MCP `isError: true` result.
 
+### Conversation search
+
+`list_conversations` accepts three optional [Crisp search parameters](https://docs.crisp.chat/references/rest-api/v1/#list-conversations):
+
+- `search_query`: text for `text` or `segment` search, or a filter expression for `filter` search.
+- `search_type`: `text`, `segment`, or `filter`.
+- `search_operator`: `and` or `or`, used for `filter` search. Crisp defaults to `and` when omitted.
+
+The accepted values and operator behavior follow Crisp's published REST API contract. Automated tests verify MCP validation and request forwarding using mocked Crisp responses; live Crisp search matching is not covered.
+
+For example, `{ "website_id": "<website_id>", "search_query": "SEVIS", "search_type": "text" }` searches for conversations about SEVIS. Searches support the existing `page`, `per_page`, and filter parameters; omitting the search parameters keeps ordinary conversation listing behavior.
+
 ## Authentication
 
 The server is **stateless and credential-free**: it does not store any Crisp token. Each MCP client passes the Crisp token directly to the endpoint.
