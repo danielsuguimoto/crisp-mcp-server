@@ -62,7 +62,7 @@ describe("list_conversations operator filters", () => {
   it("documents optional assignment inputs, alias compatibility, and authenticated-user mentions", async () => {
     const { tools } = await client.listTools();
     const tool = tools.find((tool) => tool.name === "list_conversations");
-    expect(tool?.inputSchema.required).toEqual(["website_id"]);
+    expect(tool?.inputSchema.required ?? []).toEqual([]);
     expect(tool?.description).toMatch(/assigned_operator_id.*assignment.*filter_mention.*separate 0\/1.*authenticated user.*not an operator ID/);
     expect(tool?.inputSchema.properties).toMatchObject({
       assigned_operator_id: {

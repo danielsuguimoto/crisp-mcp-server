@@ -1,4 +1,13 @@
+import { z } from "zod";
+
 const CRISP_API_BASE = "https://api.crisp.chat/v1";
+
+const connectedWebsitesSchema = z.object({
+  data: z.array(z.object({ website_id: z.string().trim().min(1) })),
+});
+
+const WEBSITE_ID_HELP =
+  "Pass website_id explicitly, set DEFAULT_WEBSITE_ID, or add ?website_id=... to the MCP URL.";
 
 export type CrispTier = "website" | "plugin";
 
@@ -15,11 +24,81 @@ export class CrispApiError extends Error {
 
 type QueryValue = string | number | boolean | undefined | null;
 
+interface ConversationSummary {
+  state: "pending" | "unresolved" | "resolved";
+  updated_at?: number;
+  waiting_since?: number;
+  unread?: { operator: number; visitor: number };
+  assigned?: { user_id: string };
+}
+
+interface ConversationMessage {
+  type: string;
+  from: "user" | "operator";
+  timestamp: number;
+  fingerprint?: number;
+  content: unknown;
+  user?: { user_id?: string; nickname?: string };
+  automated?: boolean;
+  mentions?: string[];
+}
+
+function summarizeMessage(message: ConversationMessage) {
+  return {
+    type: message.type,
+    from: message.from,
+    timestamp: message.timestamp,
+    fingerprint: message.fingerprint ?? null,
+    content: message.content,
+    user: message.user
+      ? { user_id: message.user.user_id ?? null, nickname: message.user.nickname ?? null }
+      : null,
+    automated: message.automated ?? false,
+    mentions: message.mentions ?? [],
+  };
+}
+
 export class CrispClient {
+  private resolvedWebsiteId?: Promise<string>;
+
   constructor(
     private readonly token: string,
     private readonly tier: CrispTier,
+    private readonly defaultWebsiteId?: string,
   ) {}
+
+  async resolveWebsiteId(websiteId?: string): Promise<string> {
+    if (websiteId !== undefined) return websiteId;
+    const defaultWebsiteId = this.defaultWebsiteId?.trim();
+    if (defaultWebsiteId) return defaultWebsiteId;
+    return this.resolvedWebsiteId ??= this.discoverWebsiteId();
+  }
+
+  private async discoverWebsiteId(): Promise<string> {
+    if (this.tier !== "plugin") {
+      throw new Error(`Website-tier tokens cannot list connected websites for auto-resolution. ${WEBSITE_ID_HELP}`);
+    }
+
+    try {
+      const firstPage = connectedWebsitesSchema.parse(await this.listConnectWebsites(1)).data;
+      if (firstPage.length === 0) {
+        throw new Error("No connected Crisp websites are available.");
+      }
+      if (firstPage.length > 1) {
+        throw new Error("Multiple connected Crisp websites are available.");
+      }
+      const nextPage = connectedWebsitesSchema.parse(await this.listConnectWebsites(2)).data;
+      if (nextPage.length > 0) {
+        throw new Error("Multiple connected Crisp websites are available.");
+      }
+      return firstPage[0].website_id;
+    } catch (error) {
+      const reason = error instanceof z.ZodError
+        ? "Crisp returned an invalid connected websites response."
+        : error instanceof Error ? error.message : String(error);
+      throw new Error(`Cannot automatically resolve website_id: ${reason} ${WEBSITE_ID_HELP}`);
+    }
+  }
 
   private async request<T>(
     method: string,
@@ -108,6 +187,9 @@ export class CrispClient {
     page: number,
     options: {
       per_page?: number;
+      search_query?: string;
+      search_type?: "text" | "segment" | "filter";
+      search_operator?: "and" | "or";
       include_empty?: 0 | 1;
       filter_inbox_id?: string;
       filter_unread?: 0 | 1;
@@ -130,7 +212,7 @@ export class CrispClient {
   }
 
   getConversation(websiteId: string, sessionId: string) {
-    return this.get<{ data: unknown }>(
+    return this.get<{ data: ConversationSummary }>(
       `/website/${encodeURIComponent(websiteId)}/conversation/${encodeURIComponent(sessionId)}`,
     );
   }
@@ -140,10 +222,42 @@ export class CrispClient {
     sessionId: string,
     timestamps: { timestamp_before?: string | number; timestamp_after?: string | number; timestamp_around?: string | number } = {},
   ) {
-    return this.get<{ data: unknown }>(
+    return this.get<{ data: ConversationMessage[] }>(
       `/website/${encodeURIComponent(websiteId)}/conversation/${encodeURIComponent(sessionId)}/messages`,
       timestamps as Record<string, QueryValue>,
     );
+  }
+
+  async getConversationActivity(websiteId: string, sessionId: string, noteLimit = 5) {
+    const [conversation, messages] = await Promise.all([
+      this.getConversation(websiteId, sessionId),
+      this.getConversationMessages(websiteId, sessionId),
+    ]);
+    const recent = [...messages.data].sort((a, b) => b.timestamp - a.timestamp);
+    const notes = recent.filter((message) => message.type === "note");
+    const lastOperator = recent.find((message) => message.from === "operator");
+    const lastVisitor = recent.find((message) => message.from === "user");
+
+    return {
+      data: {
+        state: conversation.data.state,
+        updated_at: conversation.data.updated_at ?? null,
+        waiting_since: conversation.data.waiting_since ?? null,
+        unread: conversation.data.unread ?? null,
+        assigned: conversation.data.assigned ?? null,
+        last_event: recent[0] ? summarizeMessage(recent[0]) : null,
+        last_operator_event: lastOperator ? summarizeMessage(lastOperator) : null,
+        last_visitor_event: lastVisitor ? summarizeMessage(lastVisitor) : null,
+        notes: notes.slice(0, noteLimit).map(summarizeMessage),
+        window: {
+          scope: "latest_message_batch",
+          messages_scanned: recent.length,
+          oldest_timestamp: recent.at(-1)?.timestamp ?? null,
+          newest_timestamp: recent[0]?.timestamp ?? null,
+          notes_truncated: notes.length > noteLimit,
+        },
+      },
+    };
   }
 
   sendNoteInConversation(

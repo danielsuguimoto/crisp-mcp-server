@@ -7,8 +7,8 @@
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
-    "test": "vitest run",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.test.json",
+    "test": "vitest run src tests/operator-filters.test.ts && node --import tsx --test tests/*.test.mjs tests/website-resolution.test.ts",
     "types": "wrangler types"
   },
   "dependencies": {
@@ -19,6 +19,8 @@
   "devDependencies": {
     "@cloudflare/workers-types": "5.20260826.1",
     "@modelcontextprotocol/client": "2.0.0",
+    "@types/node": "24.10.1",
+    "tsx": "4.20.6",
     "typescript": "5.9.3",
     "vitest": "4.1.11",
     "wrangler": "4.126.0"
