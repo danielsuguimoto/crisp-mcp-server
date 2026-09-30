@@ -28,6 +28,8 @@ It exposes Crisp **websites**, **operators**, and **conversations** as MCP tools
 - `search_type`: `text`, `segment`, or `filter`.
 - `search_operator`: `and` or `or`, used for `filter` search. Crisp defaults to `and` when omitted.
 
+The accepted values and operator behavior follow Crisp's published REST API contract. Automated tests verify MCP validation and request forwarding using mocked Crisp responses; live Crisp search matching is not covered.
+
 For example, `{ "website_id": "<website_id>", "search_query": "SEVIS", "search_type": "text" }` searches for conversations about SEVIS. Searches support the existing `page`, `per_page`, and filter parameters; omitting the search parameters keeps ordinary conversation listing behavior.
 
 ## Authentication
