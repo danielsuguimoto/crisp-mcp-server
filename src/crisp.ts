@@ -1,4 +1,13 @@
+import { z } from "zod";
+
 const CRISP_API_BASE = "https://api.crisp.chat/v1";
+
+const connectedWebsitesSchema = z.object({
+  data: z.array(z.object({ website_id: z.string().trim().min(1) })),
+});
+
+const WEBSITE_ID_HELP =
+  "Pass website_id explicitly, set DEFAULT_WEBSITE_ID, or add ?website_id=... to the MCP URL.";
 
 export type CrispTier = "website" | "plugin";
 
@@ -50,10 +59,46 @@ function summarizeMessage(message: ConversationMessage) {
 }
 
 export class CrispClient {
+  private resolvedWebsiteId?: Promise<string>;
+
   constructor(
     private readonly token: string,
     private readonly tier: CrispTier,
+    private readonly defaultWebsiteId?: string,
   ) {}
+
+  async resolveWebsiteId(websiteId?: string): Promise<string> {
+    if (websiteId !== undefined) return websiteId;
+    const defaultWebsiteId = this.defaultWebsiteId?.trim();
+    if (defaultWebsiteId) return defaultWebsiteId;
+    return this.resolvedWebsiteId ??= this.discoverWebsiteId();
+  }
+
+  private async discoverWebsiteId(): Promise<string> {
+    if (this.tier !== "plugin") {
+      throw new Error(`Website-tier tokens cannot list connected websites for auto-resolution. ${WEBSITE_ID_HELP}`);
+    }
+
+    try {
+      const firstPage = connectedWebsitesSchema.parse(await this.listConnectWebsites(1)).data;
+      if (firstPage.length === 0) {
+        throw new Error("No connected Crisp websites are available.");
+      }
+      if (firstPage.length > 1) {
+        throw new Error("Multiple connected Crisp websites are available.");
+      }
+      const nextPage = connectedWebsitesSchema.parse(await this.listConnectWebsites(2)).data;
+      if (nextPage.length > 0) {
+        throw new Error("Multiple connected Crisp websites are available.");
+      }
+      return firstPage[0].website_id;
+    } catch (error) {
+      const reason = error instanceof z.ZodError
+        ? "Crisp returned an invalid connected websites response."
+        : error instanceof Error ? error.message : String(error);
+      throw new Error(`Cannot automatically resolve website_id: ${reason} ${WEBSITE_ID_HELP}`);
+    }
+  }
 
   private async request<T>(
     method: string,
