@@ -49,7 +49,7 @@ test("publishes optional search parameters with accepted values and behavior", {
   const { request } = await createServer(t);
   const response = await request("tools/list");
   const tool = response.result.tools.find((item) => item.name === "list_conversations");
-  const { properties, required } = tool.inputSchema;
+  const { properties, required = [] } = tool.inputSchema;
   assert.equal(properties.search_query.type, "string");
   assert.deepEqual(properties.search_type.enum, ["text", "segment", "filter"]);
   assert.deepEqual(properties.search_operator.enum, ["and", "or"]);

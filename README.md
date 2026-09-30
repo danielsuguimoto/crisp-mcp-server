@@ -53,6 +53,28 @@ Crisp tokens are either `website` (single workspace) or `plugin` (multi-workspac
 
 Generate tokens from the Crisp app: **Settings → Workspace Settings → Advanced configuration → API Token** (website), or the Crisp Marketplace (plugin).
 
+### Default website (workspace)
+
+Every website-scoped tool accepts an optional `website_id`. Resolution uses the first available value:
+
+1. Explicit `website_id` in the tool call.
+2. `website_id` query parameter on the MCP URL, for example `https://<your-worker>.workers.dev/mcp?tier=website&website_id=<workspace-id>`.
+3. Worker environment variable `DEFAULT_WEBSITE_ID`.
+4. Automatic discovery for plugin-tier tokens, when exactly one connected website is available.
+
+To configure a Worker-wide default, add a `vars` entry to `wrangler.jsonc`:
+
+```jsonc
+"vars": {
+  "DEFAULT_WEBSITE_ID": "<workspace-id>"
+}
+```
+
+For local development, put `DEFAULT_WEBSITE_ID=<workspace-id>` in `.dev.vars` (do not commit local variables).
+Blank configuration values are treated as unset. An explicit blank `website_id` is rejected.
+
+Website-tier tokens cannot list connected websites through the Crisp API, so they require an explicit ID or a configured default. Plugin auto-discovery checks the next page before choosing a sole website and returns an actionable tool error if there are no websites, multiple websites, or discovery is unavailable. Discovery is lazy and scoped to the current request's credentials; no website IDs or credentials are cached across requests. `list_connect_websites` and `get_connect_account` remain usable without a default or website discovery.
+
 ## Develop
 
 ```bash
