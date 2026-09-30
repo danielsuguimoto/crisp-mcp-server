@@ -33,7 +33,7 @@ returns the latest batch by default; this tool filters that batch locally.
 | --- | --- | --- |
 | `website_id` | yes | Nonempty Crisp workspace ID. |
 | `session_id` | yes | Nonempty conversation session ID. |
-| `note_limit` | no | Maximum notes returned, integer 0–20, default 5. `0` omits the notes list; last-event fields can still contain a note. |
+| `note_limit` | no | Maximum notes returned, integer 0–20, default 5. `0` returns an empty notes list; last-event fields can still contain a note. |
 
 Example call:
 
